@@ -6,7 +6,7 @@ on:
   push:
     branches: [ "main" ]
     paths:
-      - 'images.txt'
+      - 'images.yaml'
 
 jobs:
   copy-image:
@@ -17,7 +17,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Use Skopeo Copy
+        env:
+          REGISTRY: ${{ secrets.REGISTRY }}
+          REGISTRY_NAMESPACE: ${{ secrets.REGISTRY_NAMESPACE }}
         run: |
           skopeo --version
-          skopeo login --username=${{ secrets.REGISTRY_USER }} --password=${{ secrets.REGISTRY_PASSWORD }} ${{ secrets.REGISTRY }}
-          sh copy.sh
+          yq --version
+          skopeo login --username=${{ secrets.REGISTRY_USERNAME }} --password=${{ secrets.REGISTRY_PASSWORD }} "$REGISTRY"
+          sh scripts/copy.sh batch

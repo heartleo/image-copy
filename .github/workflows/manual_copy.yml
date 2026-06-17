@@ -5,22 +5,19 @@ run-name: ${{ github.actor }} run manual copy image
 on:
   workflow_dispatch:
     inputs:
-      all:
-        description: '多架构'
-        required: true
-        default: '否'
-        type: choice
-        options:
-          - '是'
-          - '否'
       source:
-        description: '源镜像 repo:tag'
+        description: "源镜像 (如 redis:7.2.5 或 quay.io/coreos/etcd:v3.5.17)"
         required: true
         type: string
       dest:
-        description: '目标镜像 repo:tag'
-        required: true
+        description: "目标镜像 (空则默认为 REGISTRY/REGISTRY_NAMESPACE/镜像名)"
+        required: false
         type: string
+      multi_arch:
+        description: "全部架构（不勾选则只复制运行 runner 的架构，ubuntu-24.04 即 linux/amd64）"
+        required: false
+        default: false
+        type: boolean
 
 jobs:
   copy-image:
@@ -31,14 +28,14 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Use Skopeo Copy
+        env:
+          REGISTRY: ${{ secrets.REGISTRY }}
+          REGISTRY_NAMESPACE: ${{ secrets.REGISTRY_NAMESPACE }}
+          SRC: ${{ inputs.source }}
+          DEST: ${{ inputs.dest }}
+          MULTI_ARCH: ${{ inputs.multi_arch }}
         run: |
           skopeo --version
-          skopeo login --username=${{ secrets.REGISTRY_USER }} --password=${{ secrets.REGISTRY_PASSWORD }} ${{ secrets.REGISTRY }}
-          echo "Copying ${{ github.event.inputs.source }} => ${{ github.event.inputs.dest }}"
-          echo "All: ${{ github.event.inputs.all }}"
-          if [ ${{ github.event.inputs.all }} == '是'  ]; then
-          skopeo copy --all "docker://${{ github.event.inputs.source }}" "docker://${{ github.event.inputs.dest }}"
-          else
-          skopeo copy "docker://${{ github.event.inputs.source }}" "docker://${{ github.event.inputs.dest }}"
-          fi
-          echo "Copied ${{ github.event.inputs.source }} => ${{ github.event.inputs.dest }}"
+          skopeo login --username=${{ secrets.REGISTRY_USERNAME }} --password=${{ secrets.REGISTRY_PASSWORD }} "$REGISTRY"
+          . ./scripts/copy.sh
+          mirror "$SRC" "$DEST" "$MULTI_ARCH"
